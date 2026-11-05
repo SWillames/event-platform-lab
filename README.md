@@ -26,7 +26,7 @@ Este projeto consiste numa aplicação baseada numa arquitetura de microsserviç
 
 ## 📐 Arquitetura do Projeto
 
-O projeto adota os princípios do **Domain-Driven Design (DDD)** com contextos delimitados (Bounded Contexts):
+O projeto adota os princípios do **Domain-Driven Design (DDD)** e da **Clean Architecture** com contextos delimitados (Bounded Contexts):
 
 ```text
 event-platform-lab/
@@ -37,18 +37,39 @@ event-platform-lab/
 │   └── main/
 │       ├── java/
 │       │   └── com/
-│       │       └── dio/
+│       │       └── swsoftware/
 │       │           └── marketplace/
 │       │               ├── registration/   # Módulo de Clientes (MySQL)
-│       │               ├── catalog/        # Módulo de Catálogo (MySQL + Mongo + Redis)
-│       │               ├── ticketing/      # Módulo de Ingressos (PostgreSQL + Redis)
+│       │               │   ├── domain/
+│       │               │   │   ├── Customer.java               # Entidade do Domínio
+│       │               │   │   ├── CustomerId.java             # Value Object
+│       │               │   │   └── CustomerRepository.java     # Contrato de Negócio
+│       │               │   └── infrastructure/
+│       │               │       └── persistence/
+│       │               │           ├── AddressEntity.java      # Tabela 'address'
+│       │               │           ├── CustomerEntity.java     # Tabela 'customer'
+│       │               │           ├── CustomerEntityRepository.java # JPA / Spring Data REST
+│       │               │           ├── CustomerMapper.java     # Conversor (Domínio <-> JPA)
+│       │               │           └── CustomerRepositoryImpl.java   # Conexão Domínio <-> JPA
+│       │               ├── catalog/        # Módulo de Catálogo
+│       │               ├── ticketing/      # Módulo de Ingressos
 │       │               └── common/         # Eventos e DTOs Partilhados
 │       └── resources/
 │           └── application.properties
-├── compose.yml                 # Definição dos serviços Docker
+├── compose.yaml                 # Definição dos serviços Docker
 ├── pom.xml                     # Configurações do Maven
 └── README.md                   # Documentação principal
 ```
+
+---
+
+## 💡 Decisão de Arquitetura: Separação de Repositórios no Módulo `registration`
+
+Dentro do módulo `registration`, aplicamos o **Princípio da Inversão de Dependência (DIP)** para manter o núcleo do negócio (`domain`) totalmente desacoplado de frameworks e da base de dados relacional:
+
+1. **`CustomerRepository` (Domínio):** Interface puramente Java em `registration.domain`. Define operações com objetos do negócio (`Customer` e `CustomerId`), permitindo testar as regras sem dependência do Spring Boot ou MySQL.
+2. **`CustomerEntityRepository` (Infraestrutura):** Interface em `registration.infrastructure.persistence` que estende `JpaRepository` e é anotada com `@RepositoryRestResource` para gerir tabelas no MySQL e expor a API REST.
+3. **`CustomerRepositoryImpl` & `CustomerMapper` (Ponte):** O `CustomerRepositoryImpl` implementa a interface do domínio. Ele utiliza o `CustomerMapper` para converter `Customer` $\leftrightarrow$ `CustomerEntity` e delega a gravação no banco ao `CustomerEntityRepository`.
 
 ---
 
@@ -62,7 +83,7 @@ As decisões de arquitetura relevantes são documentadas na pasta `doc/adr/`:
 
 ## 🐳 Infraestrutura (Docker Compose)
 
-A infraestrutura local é gerida através do ficheiro `compose.yml`. Durante o arranque da aplicação Spring Boot em ambiente de desenvolvimento, os containers são inicializados automaticamente.
+A infraestrutura local é gerida através do ficheiro `compose.yaml`. Durante o arranque da aplicação Spring Boot em ambiente de desenvolvimento, os contêineres são inicializados automaticamente via `spring-boot-docker-compose`.
 
 | Serviço | Imagem | Porta Externa | Descrição |
 | :--- | :--- | :--- | :--- |
@@ -75,14 +96,13 @@ A infraestrutura local é gerida através do ficheiro `compose.yml`. Durante o a
 
 ---
 
-## 📋 Como Executar o Projeto
+## 📋 Como Executar e Testar o Projeto
 
 ### Pré-requisitos
 - **Java 21** (ou superior) instalado
-- **Apache Maven** instalado (ou utilizar o wrapper `./mvnw`)
 - **Docker** e **Docker Compose** ativos na máquina
 
-### Passo a Passo
+### Passo a Passo de Execução
 
 1. **Clonar o repositório:**
    ```bash
@@ -90,16 +110,32 @@ A infraestrutura local é gerida através do ficheiro `compose.yml`. Durante o a
    cd event-platform-lab
    ```
 
-2. **Subir os containers de infraestrutura (opcional se usar o suporte automático do Spring):**
-   ```bash
-   docker compose up -d
-   ```
-
-3. **Compilar e executar a aplicação via Maven:**
+2. **Compilar e executar a aplicação via Maven Wrapper:**
+   *(O Spring Boot iniciará os contêineres Docker automaticamente)*
    ```bash
    ./mvnw spring-boot:run
    ```
 
-4. **Aceder à aplicação:**
-   - **HAL Explorer (Navegação REST):** `http://localhost:8080`
-   - **Health Check (Actuator):** `http://localhost:8080/actuator/health`
+3. **Testar os Endpoints REST do Módulo `registration`:**
+   - **Listar Clientes (HTTP GET):**
+     ```bash
+     curl -X GET http://localhost:8080/customers
+     ```
+   - **Cadastrar Cliente com Endereço (HTTP POST):**
+     ```bash
+     curl -i -X POST http://localhost:8080/customers \
+       -H "Content-Type: application/json" \
+       -d '{
+         "id": "c138b139-4d69-4d40-8488-bc1c2d0fbb32",
+         "name": "Sérgio Willames",
+         "email": "sergio@example.com",
+         "address": {
+           "street": "Rua Principal",
+           "number": "100",
+           "neighborhood": "Centro",
+           "city": "Floriano",
+           "state": "PI",
+           "zipCode": "64800-000"
+         }
+       }'
+     ```
