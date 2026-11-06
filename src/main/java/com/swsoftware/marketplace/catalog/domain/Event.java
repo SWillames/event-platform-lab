@@ -46,6 +46,7 @@ public class Event {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("O nome do evento não pode ser vazio.");
         }
+        this.name = name;
     }
 
     public void setDescription(String description) {
@@ -56,7 +57,7 @@ public class Event {
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("O preço do evento deve ser maior ou igual a zero.");
         }
-
+        this.price = price;
     }
 
     public void setTotalCapacity(int totalCapacity) {
