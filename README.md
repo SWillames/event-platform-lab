@@ -117,10 +117,6 @@ A infraestrutura local é gerida através do ficheiro `compose.yaml`. Durante o 
    ```
 
 3. **Testar os Endpoints REST do Módulo `registration`:**
-   - **Listar Clientes (HTTP GET):**
-     ```bash
-     curl -X GET http://localhost:8080/customers
-     ```
    - **Cadastrar Cliente com Endereço (HTTP POST):**
      ```bash
      curl -i -X POST http://localhost:8080/customers \
@@ -138,4 +134,15 @@ A infraestrutura local é gerida através do ficheiro `compose.yaml`. Durante o 
            "zipCode": "64800-000"
          }
        }'
+     ```
+   - Cadastrar Evento (catalog - HTTP POST):
+     ```bash
+     curl -i -X POST http://localhost:8080/api/events \
+      -H "Content-Type: application/json" \
+      -d '{
+         "name": "DevConference 2026",
+         "description": "Maior evento de tecnologia e       arquitetura de software",
+         "price": 150.00,
+         "totalCapacity": 500
+     }'
      ```
